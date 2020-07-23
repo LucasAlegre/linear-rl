@@ -4,7 +4,7 @@ from linear_rl.fourier import FourierBasis
 
 class TrueOnlineSarsaLambda:
 
-    def __init__(self, state_space, action_space, basis='fourier', alpha=0.001, lamb=0.9, gamma=0.99, epsilon=0.05, fourier_order=7):
+    def __init__(self, state_space, action_space, basis='fourier', min_max_norm=True, alpha=0.0001, lamb=0.9, gamma=0.99, epsilon=0.05, fourier_order=7):
         self.alpha = alpha
         self.lr = alpha
         self.lamb = lamb
@@ -15,6 +15,10 @@ class TrueOnlineSarsaLambda:
         self.state_dim = self.state_space.shape[0]
         self.action_space = action_space
         self.action_dim = self.action_space.n
+        self.min_max_norm = min_max_norm
+
+        #self.max_range = state_space.low
+        #self.min_range = state_space.high
 
         if basis == 'fourier':
             self.basis = FourierBasis(self.state_space, self.action_space, fourier_order)
@@ -32,7 +36,10 @@ class TrueOnlineSarsaLambda:
         phi = self.get_features(state)
         next_phi = self.get_features(next_state)
         q = self.get_q_value(phi, action)
-        next_q = self.get_q_value(next_phi, self.get_action(next_phi))
+        if not done:
+            next_q = self.get_q_value(next_phi, self.get_action(next_phi))
+        else:
+            next_q = 0.0
         td_error = reward + self.gamma * next_q - q
         if self.q_old is None:
             self.q_old = q
@@ -53,6 +60,13 @@ class TrueOnlineSarsaLambda:
         return np.dot(self.theta[action], features)
         
     def get_features(self, state):
+        if self.min_max_norm:
+            """ self.max_range = np.maximum(self.max_range, state)
+            self.min_range = np.minimum(self.min_range, state)
+            state = (state - self.min_range) / (self.max_range - self.min_range)
+            #print(state) """
+
+            state = (state - self.state_space.low) / (self.state_space.high - self.state_space.low)
         return self.basis.get_features(state)
     
     def reset_traces(self):

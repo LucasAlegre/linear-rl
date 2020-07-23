@@ -1,14 +1,15 @@
 import numpy as np
-from itertools import combinations
+from itertools import combinations, product
 
 from linear_rl.basis import Basis
 
 
 class FourierBasis(Basis):
 
-    def __init__(self, state_space, action_space, order):
+    def __init__(self, state_space, action_space, order, max_non_zero=2):
         super().__init__(state_space, action_space)
         self.order = order
+        self.max_non_zero = max_non_zero
         self.coeff = self._build_coefficients()
     
     def get_learning_rates(self, alpha):
@@ -19,20 +20,16 @@ class FourierBasis(Basis):
     
     def _build_coefficients(self):
         coeff = np.array(np.zeros(self.state_dim))  # Bias
-        for order in range(1, self.order + 1):
-            coeff = np.vstack((coeff, np.identity(self.state_dim)*order))
-        for i, j in combinations(range(self.state_dim), 2):
-            for o1 in range(1, self.order + 1):
-                for o2 in range(1, self.order + 1):
-                    c = np.zeros(self.state_dim)
-                    c[i] = o1
-                    c[j] = o2
-                    coeff = np.vstack((coeff, c))
+
+        for i in range(1, self.max_non_zero + 1):
+            for indices in combinations(range(self.state_dim), i):
+                for c in product(range(1, self.order + 1), repeat=i):
+                    coef = np.zeros(self.state_dim)
+                    coef[list(indices)] = list(c)
+                    coeff = np.vstack((coeff, coef))
         return coeff
     
     def get_features(self, state):
-        # scale to [0,1]
-        state = (state - self.state_space.low) / (self.state_space.high - self.state_space.low)
         return np.cos(np.dot(np.pi*self.coeff, state))
 
     def get_num_basis(self) -> int:
