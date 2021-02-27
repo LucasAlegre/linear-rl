@@ -3,8 +3,9 @@ from linear_rl.fourier import FourierBasis
 
 
 class TrueOnlineSarsaLambda:
+    #Reference: True Online Temporal-Difference Learning (https://arxiv.org/pdf/1512.04087.pdf)
 
-    def __init__(self, state_space, action_space, basis='fourier', min_max_norm=True, alpha=0.0001, lamb=0.9, gamma=0.99, epsilon=0.05, fourier_order=7):
+    def __init__(self, state_space, action_space, basis='fourier', min_max_norm=False, alpha=0.0001, lamb=0.9, gamma=0.99, epsilon=0.05, fourier_order=7, max_non_zero_fourier=2):
         self.alpha = alpha
         self.lr = alpha
         self.lamb = lamb
@@ -17,11 +18,8 @@ class TrueOnlineSarsaLambda:
         self.action_dim = self.action_space.n
         self.min_max_norm = min_max_norm
 
-        #self.max_range = state_space.low
-        #self.min_range = state_space.high
-
         if basis == 'fourier':
-            self.basis = FourierBasis(self.state_space, self.action_space, fourier_order)
+            self.basis = FourierBasis(self.state_space, self.action_space, fourier_order, max_non_zero=max_non_zero_fourier)
             self.lr = self.basis.get_learning_rates(self.alpha)
 
         self.num_basis = self.basis.get_num_basis()
@@ -46,7 +44,7 @@ class TrueOnlineSarsaLambda:
 
         for a in range(self.action_dim):
             if a == action:
-                self.et[a] = self.lamb*self.gamma*self.et[a] + phi - self.lr*self.gamma*self.lamb*(self.et[a]*phi)*phi
+                self.et[a] = self.lamb*self.gamma*self.et[a] + phi -(self.lr*self.gamma*self.lamb*np.dot(self.et[a],phi))*phi
                 self.theta[a] += self.lr*(td_error + q - self.q_old)*self.et[a] - self.lr*(q - self.q_old)*phi
             else:
                 self.et[a] = self.lamb*self.gamma*self.et[a]
@@ -61,11 +59,6 @@ class TrueOnlineSarsaLambda:
         
     def get_features(self, state):
         if self.min_max_norm:
-            """ self.max_range = np.maximum(self.max_range, state)
-            self.min_range = np.minimum(self.min_range, state)
-            state = (state - self.min_range) / (self.max_range - self.min_range)
-            #print(state) """
-
             state = (state - self.state_space.low) / (self.state_space.high - self.state_space.low)
         return self.basis.get_features(state)
     

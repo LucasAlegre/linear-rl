@@ -9,7 +9,7 @@ class FourierBasis(Basis):
     def __init__(self, state_space, action_space, order, max_non_zero=2):
         super().__init__(state_space, action_space)
         self.order = order
-        self.max_non_zero = max_non_zero
+        self.max_non_zero = min(max_non_zero, state_space.shape[0])
         self.coeff = self._build_coefficients()
     
     def get_learning_rates(self, alpha):
